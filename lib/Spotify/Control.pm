@@ -103,9 +103,10 @@ Play a Spotify URI. This can be a track, album or artist
 =cut
 
 sub play {
+    my $self = shift;
     croak __PACKAGE__ . '->play: Invalid arguments' unless @_ % 2 == 0;
 
-    return shift->spot->play(@_);
+    return $self->spot->play(@_);
 }
 
 =head2 pause
