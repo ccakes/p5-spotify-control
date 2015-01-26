@@ -6,10 +6,8 @@ use warnings FATAL => 'all';
 
 use Carp;
 use URI;
-use JSON::XS;
+use JSON;
 use LWP::UserAgent;
-
-use Data::Dumper::Simple;
 
 =head1 NAME
 
@@ -21,7 +19,7 @@ Version 0.10
 
 =cut
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 
 =head1 SYNOPSIS
@@ -46,7 +44,7 @@ sub new {
         _csrf => undef,
 
         hostname => join('', map(sprintf("%x", rand 16), 1..8)) . '.spotilocal.com',
-        port => 4370,
+        port => undef,
 
         headers => ['Origin', 'https://open.spotify.com'],
     );
@@ -70,6 +68,24 @@ sub initialise {
     my $self = shift;
 
     my $response;
+
+    # Discover which port the player is listening on
+    # Create a new UserAgent for this with a low timeout and loop through known ports until we find a match
+    my $ua = LWP::UserAgent->new;
+    $ua->timeout(1);
+
+    # Known port range for SpotifyWebHelper
+    foreach my $p (4370..4380) {
+        my $res = $ua->get(sprintf('https://%s:%d/service/version.json?service=remote', $self->{hostname}, $p));
+
+        # Valid client should return with a HTTP 200
+        if ($res->is_success) {
+            $self->{port} = $p;
+            last;
+        }
+    }
+
+    croak __PACKAGE__ . '->initalise: Unable to find running client' unless $self->{port};
 
     # Grab token from Spotify
     $response = $self->ua->get('http://open.spotify.com/token');
