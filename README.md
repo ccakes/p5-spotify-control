@@ -24,7 +24,6 @@ $spot->play(uri => 'spotify:track:5bj4hb0QYTs44PDiwbI5CS');
 
 The main items on the list is an Applescript and D-BUS interface. Following that, a standard format for returning the status across all the implementations, possibly as an object.
 
-- [ ] Discover client HTTP port
 - [ ] Spotify::Control::Applescript
 - [ ] Spotify::Control::DBUS
 - [ ] Standardise ->status response
