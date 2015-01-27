@@ -53,6 +53,11 @@ sub new {
         $self->{$_} = exists $args{$_} ? $args{$_} : $defaults{$_};
     }
 
+    # Handle Spotify client on linux only supporting SSLv3
+    if ($^O eq 'linux') {
+        $self->{_ua}->ssl_opts(SSL_version => 'SSLv3');
+    }
+
     return $self;
 }
 
@@ -70,13 +75,9 @@ sub initialise {
     my $response;
 
     # Discover which port the player is listening on
-    # Create a new UserAgent for this with a low timeout and loop through known ports until we find a match
-    my $ua = LWP::UserAgent->new;
-    $ua->timeout(1);
-
-    # Known port range for SpotifyWebHelper
+    $self->ua->timeout(1);
     foreach my $p (4370..4380) {
-        my $res = $ua->get(sprintf('https://%s:%d/service/version.json?service=remote', $self->{hostname}, $p));
+        my $res = $self->ua->get(sprintf('https://%s:%d/service/version.json?service=remote', $self->{hostname}, $p));
 
         # Valid client should return with a HTTP 200
         if ($res->is_success) {
@@ -86,14 +87,16 @@ sub initialise {
     }
 
     croak __PACKAGE__ . '->initalise: Unable to find running client' unless $self->{port};
+    $self->ua->timeout(30);
 
     # Grab token from Spotify
-    $response = $self->ua->get('http://open.spotify.com/token');
+    # Create a new UserAgent for this because sane sites don't support SSLv3 anymore
+    my $ua = LWP::UserAgent->new(agent => __PACKAGE__ . '/' . $VERSION);
+    $response = $ua->get('http://open.spotify.com/token');
     croak __PACKAGE__ . '->initialise: ' . $response->decoded_content unless $response->is_success;
+    eval { $self->{_oauth} = decode_json($response->content)->{t} };
 
-    eval { $self->{_oauth} = decode_json($self->ua->get('http://open.spotify.com/token')->content)->{t} };
     eval { $self->{_csrf} = decode_json($self->ua->get(sprintf('https://%s:%d', $self->{hostname}, $self->{port}) . '/simplecsrf/token.json', @{$self->{headers}})->content)->{token} };
-
     croak __PACKAGE__ . '->initialise: ' . $@ if $@;
 
     return 1 unless ($self->{_oauth} && $self->{_csrf});

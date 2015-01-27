@@ -56,7 +56,7 @@ sub new {
     }
 
     if ($self->{method} eq 'http') {
-        $self->{_s} = Spotify::Control::HTTP->new;
+        $self->{_s} = Spotify::Control::HTTP->new(%args);
         $self->{_s}->initialise;
     }
     elsif ($self->{method} eq 'applescript') {
